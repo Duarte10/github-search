@@ -1,95 +1,142 @@
-import Image from 'next/image'
-import styles from './page.module.css'
+"use client";
+
+import {
+  Box,
+  InputAdornment,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  TextField,
+} from "@mui/material";
+import Icon from "@mui/material/Icon";
+import { useEffect, useState } from "react";
+
+interface Repository {
+  name: string;
+  shortDescriptionHTML: string;
+  ownerAvatarUrl: string;
+}
 
 export default function Home() {
+  const [repositories, setRepositories] = useState<Repository[]>([]);
+  const [candidateSearchString, setCandidateSearchString] =
+    useState<string>("");
+  const [searchString, setSearchString] = useState<string>("");
+
+  useEffect(() => {
+    if (candidateSearchString) {
+      const delayDebounceFn = setTimeout(() => {
+        setSearchString(candidateSearchString);
+      }, 200);
+      return () => {
+        clearTimeout(delayDebounceFn);
+      };
+    }
+  }, [candidateSearchString]);
+
+  useEffect(() => {
+    if (!searchString) {
+      return;
+    }
+    const query = `query {
+        search(query: "${searchString}", type:REPOSITORY, first:15) {
+          edges { 
+            node { 
+              ... on Repository { 
+                nameWithOwner,
+                shortDescriptionHTML,
+                owner {
+                    avatarUrl 
+                  }
+                } 
+              }
+            } 
+          } 
+        }`;
+
+    fetch("https://api.github.com/graphql", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization:
+          "Bearer %GITHUB_PAT%",
+      },
+      body: JSON.stringify({
+        query,
+      }),
+    })
+      .then((r) => r.json())
+      .then((result) => {
+        console.log(result);
+        const mappedResult = result.data.search.edges.map(
+          (item: any) =>  {
+            return {
+              name: item.node.nameWithOwner,
+              shortDescriptionHTML: item.node.shortDescriptionHTML,
+              ownerAvatarUrl: item.node.owner.avatarUrl
+            }
+          }
+        );
+        console.log(mappedResult);
+        setRepositories(mappedResult);
+      });
+  }, [searchString]);
+
   return (
-    <main className={styles.main}>
-      <div className={styles.description}>
-        <p>
-          Get started by editing&nbsp;
-          <code className={styles.code}>src/app/page.tsx</code>
-        </p>
-        <div>
-          <a
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{' '}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className={styles.vercelLogo}
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
-      </div>
-
-      <div className={styles.center}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        minHeight: "100vh",
+        flexDirection: "column",
+        pt: 12,
+      }}
+    >
+      <h3>Search Github Repositories</h3>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          flexDirection: "column",
+          bgcolor: "grey.900",
+          mt: 1,
+          p: 1,
+          borderRadius: "4px",
+          maxHeight: "100%",
+        }}
+      >
+        <TextField
+          size="small"
+          placeholder="Search..."
+          value={candidateSearchString}
+          onChange={(e) => setCandidateSearchString(e.target.value)}
+          fullWidth
+          InputProps={{
+            endAdornment: (
+              <InputAdornment position="end">
+                <Icon>search</Icon>
+              </InputAdornment>
+            ),
+          }}
         />
-      </div>
-
-      <div className={styles.grid}>
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Docs <span>-&gt;</span>
-          </h2>
-          <p>Find in-depth information about Next.js features and API.</p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Learn <span>-&gt;</span>
-          </h2>
-          <p>Learn about Next.js in an interactive course with&nbsp;quizzes!</p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Templates <span>-&gt;</span>
-          </h2>
-          <p>Explore the Next.js 13 playground.</p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Deploy <span>-&gt;</span>
-          </h2>
-          <p>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
-  )
+        {repositories.length > 0 && (
+          <List sx={{ overflow: "auto" }}>
+            {repositories.map((r, index) => (
+              <ListItem disablePadding key={index}>
+                <ListItemButton>
+                  <ListItemText primary={r.name} />
+                  <ListItemIcon>
+                    <Icon>star</Icon>
+                  </ListItemIcon>
+                </ListItemButton>
+              </ListItem>
+            ))}
+          </List>
+        )}
+      </Box>
+    </Box>
+  );
 }
