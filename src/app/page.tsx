@@ -1,29 +1,34 @@
 "use client";
 
 import {
+  Avatar,
   Box,
+  Divider,
+  IconButton,
   InputAdornment,
   List,
   ListItem,
-  ListItemButton,
-  ListItemIcon,
+  ListItemAvatar,
   ListItemText,
   TextField,
 } from "@mui/material";
 import Icon from "@mui/material/Icon";
 import { useEffect, useState } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import { favoriteAdded, favoriteRemoved } from "../storage/favorites";
+import { IRepository } from "@/interfaces/IRepository";
+import React from "react";
 
-interface Repository {
-  name: string;
-  shortDescriptionHTML: string;
-  ownerAvatarUrl: string;
-}
-
-export default function Home() {
-  const [repositories, setRepositories] = useState<Repository[]>([]);
+export default function Search() {
+  // local state
+  const [repositories, setRepositories] = useState<IRepository[]>([]);
   const [candidateSearchString, setCandidateSearchString] =
     useState<string>("");
   const [searchString, setSearchString] = useState<string>("");
+
+  // redux store
+  const favorites = useSelector((state: any) => state.favorites);
+  const dispatch = useDispatch();
 
   useEffect(() => {
     if (candidateSearchString) {
@@ -44,7 +49,8 @@ export default function Home() {
         search(query: "${searchString}", type:REPOSITORY, first:15) {
           edges { 
             node { 
-              ... on Repository { 
+              ... on Repository {
+                id,
                 nameWithOwner,
                 shortDescriptionHTML,
                 owner {
@@ -70,31 +76,31 @@ export default function Home() {
     })
       .then((r) => r.json())
       .then((result) => {
-        console.log(result);
-        const mappedResult = result.data.search.edges.map(
-          (item: any) =>  {
-            return {
-              name: item.node.nameWithOwner,
-              shortDescriptionHTML: item.node.shortDescriptionHTML,
-              ownerAvatarUrl: item.node.owner.avatarUrl
-            }
-          }
-        );
-        console.log(mappedResult);
+        const mappedResult = result.data.search.edges.map((item: any) => {
+          return {
+            id: item.node.id,
+            name: item.node.nameWithOwner,
+            shortDescriptionHTML: item.node.shortDescriptionHTML,
+            ownerAvatarUrl: item.node.owner.avatarUrl,
+          };
+        });
         setRepositories(mappedResult);
       });
   }, [searchString]);
 
+  const addFavorite = (repository: IRepository) => {
+    dispatch(favoriteAdded({
+      id: repository.id,
+      repository
+    }));
+  };
+
+  const removeFavorite = (id: string) => {
+    dispatch(favoriteRemoved(id));
+  };
+
   return (
-    <Box
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        minHeight: "100vh",
-        flexDirection: "column",
-        pt: 12,
-      }}
-    >
+    <>
       <h3>Search Github Repositories</h3>
       <Box
         sx={{
@@ -106,6 +112,11 @@ export default function Home() {
           p: 1,
           borderRadius: "4px",
           maxHeight: "100%",
+          // width: "calc(100% - 150px)"
+          width: "calc(100% - 50px)",
+            '@media (min-width: 780px)' : {
+              width: '50%'
+            }
         }}
       >
         <TextField
@@ -123,20 +134,33 @@ export default function Home() {
           }}
         />
         {repositories.length > 0 && (
-          <List sx={{ overflow: "auto" }}>
-            {repositories.map((r, index) => (
-              <ListItem disablePadding key={index}>
-                <ListItemButton>
-                  <ListItemText primary={r.name} />
-                  <ListItemIcon>
-                    <Icon>star</Icon>
-                  </ListItemIcon>
-                </ListItemButton>
-              </ListItem>
+          <List sx={{ overflow: "auto", width: "100%" }}>
+            {repositories.map((r) => (
+              <React.Fragment key={r.id}>
+                <ListItem>
+                  <ListItemAvatar>
+                    <Avatar alt={r.name} src={r.ownerAvatarUrl} />
+                  </ListItemAvatar>
+                  <ListItemText 
+                    primary={r.name} 
+                    primaryTypographyProps={{  overflow: "hidden" } }
+                    secondary={r.shortDescriptionHTML} />
+                  {favorites.hasOwnProperty(r.id) ? (
+                    <IconButton onClick={() => removeFavorite(r.id)}>
+                      <Icon>star</Icon>
+                    </IconButton>
+                  ) : (
+                    <IconButton onClick={() => addFavorite(r)}>
+                      <Icon>star_border</Icon>
+                    </IconButton>
+                  )}
+                </ListItem>
+                <Divider variant="inset" component="li" />
+              </React.Fragment>
             ))}
           </List>
         )}
       </Box>
-    </Box>
+    </>
   );
 }

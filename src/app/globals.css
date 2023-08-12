@@ -1,3 +1,4 @@
-/* body {
-    background-color: #010409;
-} */
+.route-link {
+    text-decoration: none;
+    color: inherit;
+}
