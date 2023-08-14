@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React from "react";
 import { useSelector, useDispatch } from "react-redux";
 import {
   Avatar,
@@ -10,7 +10,6 @@ import {
   List,
   ListItem,
   ListItemAvatar,
-  ListItemButton,
   ListItemText,
   Rating,
 } from "@mui/material";
@@ -58,8 +57,8 @@ export default function Favorites() {
         {Object.keys(favorites).length > 0 ? (
           <List sx={{ overflow: "auto", width: "100%" }}>
             {Object.keys(favorites).map((key) => (
-              <>
-                <ListItem key={key}>
+              <React.Fragment key={key}>
+                <ListItem>
                   <IconButton onClick={() => removeFavorite(key)}>
                     <Icon>delete_outline</Icon>
                   </IconButton>
@@ -76,15 +75,14 @@ export default function Favorites() {
                   />
 
                   <Rating
-                    name="simple-controlled"
-                    value={favorites[key].rating}
+                    value={favorites[key].rating || 0}
                     onChange={(e, newValue) => {
                       updateFavoriteRating(key, newValue);
                     }}
                   />
                 </ListItem>
                 <Divider variant="inset" component="li" />
-              </>
+              </React.Fragment>
             ))}
           </List>
         ) : (

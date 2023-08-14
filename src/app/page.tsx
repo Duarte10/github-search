@@ -9,6 +9,7 @@ import {
   List,
   ListItem,
   ListItemAvatar,
+  ListItemButton,
   ListItemText,
   TextField,
 } from "@mui/material";
@@ -22,9 +23,12 @@ import React from "react";
 export default function Search() {
   // local state
   const [repositories, setRepositories] = useState<IRepository[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [candidateSearchString, setCandidateSearchString] =
     useState<string>("");
   const [searchString, setSearchString] = useState<string>("");
+  const [endCursor, setEndCursor] = useState<string>("");
+  const [hasNextPage, setHasNextPage] = useState<boolean>(false);
 
   // redux store
   const favorites = useSelector((state: any) => state.favorites);
@@ -42,12 +46,26 @@ export default function Search() {
   }, [candidateSearchString]);
 
   useEffect(() => {
+    search(searchString, "");
+  }, [searchString]);
+
+  const search = (searchString: string, startCursor: string | undefined) => {
     if (!searchString) {
       return;
     }
+
+    if (!startCursor) {
+      setRepositories([]);
+    }
+    setIsLoading(true);
     const query = `query {
-        search(query: "${searchString}", type:REPOSITORY, first:15) {
-          edges { 
+        search(query: "${searchString}", type:REPOSITORY, first:15 ${startCursor ? `, after: "${startCursor}"` : ""}) {
+          pageInfo {
+            startCursor
+            hasNextPage
+            endCursor
+          },
+          edges {
             node { 
               ... on Repository {
                 id,
@@ -84,9 +102,17 @@ export default function Search() {
             ownerAvatarUrl: item.node.owner.avatarUrl,
           };
         });
-        setRepositories(mappedResult);
+
+        if (startCursor) {
+          setRepositories([...repositories, ...mappedResult]);
+        } else {
+          setRepositories(mappedResult);
+        }
+        setEndCursor(result.data.search.pageInfo.endCursor);
+        setHasNextPage(result.data.search.pageInfo.hasNextPage);
+        setIsLoading(false);
       });
-  }, [searchString]);
+  }
 
   const addFavorite = (repository: IRepository) => {
     dispatch(favoriteAdded({
@@ -114,8 +140,14 @@ export default function Search() {
           maxHeight: "100%",
           // width: "calc(100% - 150px)"
           width: "calc(100% - 50px)",
+           '@media (min-width: 600px)' : {
+              width: '60%'
+            },
             '@media (min-width: 780px)' : {
               width: '50%'
+            },
+            '@media (min-width: 1200px)' : {
+              width: '40%'
             }
         }}
       >
@@ -133,8 +165,8 @@ export default function Search() {
             ),
           }}
         />
-        {repositories.length > 0 && (
-          <List sx={{ overflow: "auto", width: "100%" }}>
+        {(repositories.length > 0 || isLoading) && (
+          <List sx={{ width: "100%" }}>
             {repositories.map((r) => (
               <React.Fragment key={r.id}>
                 <ListItem>
@@ -143,7 +175,8 @@ export default function Search() {
                   </ListItemAvatar>
                   <ListItemText 
                     primary={r.name} 
-                    primaryTypographyProps={{  overflow: "hidden" } }
+                    primaryTypographyProps={{  whiteSpace: "normal", overflow: "hidden" } }
+                    secondaryTypographyProps={{  whiteSpace: "normal", overflow: "hidden" } }
                     secondary={r.shortDescriptionHTML} />
                   {favorites.hasOwnProperty(r.id) ? (
                     <IconButton onClick={() => removeFavorite(r.id)}>
@@ -158,6 +191,21 @@ export default function Search() {
                 <Divider variant="inset" component="li" />
               </React.Fragment>
             ))}
+            {
+              hasNextPage && !isLoading && <ListItem key="load-more-option">
+                  <ListItemButton role={undefined} onClick={() => search(searchString, endCursor)} dense>
+                    <ListItemText 
+                      primary="Load more" 
+                      primaryTypographyProps={{  textAlign: "center", fontSize: '1rem' } }
+                    />
+                  </ListItemButton>
+              </ListItem> 
+            }
+            {
+              isLoading && <ListItem key="loading">
+                  <ListItemText primary="Loading results..." primaryTypographyProps={{  textAlign: "center"} }></ListItemText>
+              </ListItem>
+            }
           </List>
         )}
       </Box>
