@@ -1,5 +1,5 @@
 <!-- omit from toc --> 
-# GitHub Search Interface using GraphQL, React and TypeScript
+# GitHub search interface using GraphQL, React and TypeScript
 
 Search, star and rate GitHub repositories using GitHub GraphQL API.
 
